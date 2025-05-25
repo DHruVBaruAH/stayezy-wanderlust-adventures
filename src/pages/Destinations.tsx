@@ -1,0 +1,135 @@
+
+import React, { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import DestinationCard from '@/components/DestinationCard';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Search, Filter } from 'lucide-react';
+
+interface Destination {
+  id: string;
+  name: string;
+  location: string;
+  description: string;
+  price_per_night: number;
+  rating: number;
+  image_url: string;
+  amenities: string[];
+  max_guests: number;
+}
+
+const Destinations = () => {
+  const [destinations, setDestinations] = useState<Destination[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [priceFilter, setPriceFilter] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDestinations();
+  }, []);
+
+  const fetchDestinations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('destinations')
+        .select('*')
+        .order('rating', { ascending: false });
+
+      if (error) throw error;
+      setDestinations(data || []);
+    } catch (error) {
+      console.error('Error fetching destinations:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredDestinations = destinations.filter(destination => {
+    const matchesSearch = destination.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         destination.location.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesPrice = !priceFilter || 
+      (priceFilter === 'low' && destination.price_per_night < 150) ||
+      (priceFilter === 'medium' && destination.price_per_night >= 150 && destination.price_per_night < 250) ||
+      (priceFilter === 'high' && destination.price_per_night >= 250);
+
+    return matchesSearch && matchesPrice;
+  });
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-lg">Loading destinations...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">All Destinations</h1>
+          
+          {/* Search and Filter */}
+          <div className="flex flex-col md:flex-row gap-4 mb-6">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search destinations..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <div className="flex gap-2">
+              <Button
+                variant={priceFilter === '' ? 'default' : 'outline'}
+                onClick={() => setPriceFilter('')}
+                size="sm"
+              >
+                All Prices
+              </Button>
+              <Button
+                variant={priceFilter === 'low' ? 'default' : 'outline'}
+                onClick={() => setPriceFilter('low')}
+                size="sm"
+              >
+                Under $150
+              </Button>
+              <Button
+                variant={priceFilter === 'medium' ? 'default' : 'outline'}
+                onClick={() => setPriceFilter('medium')}
+                size="sm"
+              >
+                $150-$250
+              </Button>
+              <Button
+                variant={priceFilter === 'high' ? 'default' : 'outline'}
+                onClick={() => setPriceFilter('high')}
+                size="sm"
+              >
+                $250+
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Destinations Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {filteredDestinations.map((destination) => (
+            <DestinationCard key={destination.id} destination={destination} />
+          ))}
+        </div>
+
+        {filteredDestinations.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">No destinations found matching your criteria.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Destinations;
