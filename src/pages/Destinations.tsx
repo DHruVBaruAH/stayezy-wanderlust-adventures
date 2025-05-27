@@ -5,6 +5,7 @@ import DestinationCard from '@/components/DestinationCard';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, Filter } from 'lucide-react';
+import { useAmadeusSearch } from '@/hooks/useAmadeusSearch';
 
 interface Destination {
   id: string;
@@ -16,6 +17,7 @@ interface Destination {
   image_url: string;
   amenities: string[];
   max_guests: number;
+  amadeus_data?: any;
 }
 
 const Destinations = () => {
@@ -23,6 +25,7 @@ const Destinations = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [priceFilter, setPriceFilter] = useState('');
   const [loading, setLoading] = useState(true);
+  const { hotels: amadeusHotels, loading: amadeusLoading, searchHotels } = useAmadeusSearch();
 
   useEffect(() => {
     fetchDestinations();
@@ -44,7 +47,10 @@ const Destinations = () => {
     }
   };
 
-  const filteredDestinations = destinations.filter(destination => {
+  // Combine mock destinations and Amadeus results
+  const allDestinations = [...destinations, ...amadeusHotels];
+
+  const filteredDestinations = allDestinations.filter(destination => {
     const matchesSearch = destination.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          destination.location.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -56,7 +62,22 @@ const Destinations = () => {
     return matchesSearch && matchesPrice;
   });
 
-  if (loading) {
+  const handleQuickSearch = async (cityCode: string, cityName: string) => {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const dayAfter = new Date(today);
+    dayAfter.setDate(dayAfter.getDate() + 2);
+
+    await searchHotels({
+      cityCode,
+      checkInDate: tomorrow.toISOString().split('T')[0],
+      checkOutDate: dayAfter.toISOString().split('T')[0],
+      adults: 1,
+    });
+  };
+
+  if (loading && !amadeusLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-lg">Loading destinations...</div>
@@ -69,6 +90,43 @@ const Destinations = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">All Destinations</h1>
+          
+          {/* Quick Search Buttons */}
+          <div className="flex flex-wrap gap-2 mb-6">
+            <span className="text-sm text-gray-600 mr-2">Quick search:</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuickSearch('PAR', 'Paris')}
+              disabled={amadeusLoading}
+            >
+              Paris
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuickSearch('LON', 'London')}
+              disabled={amadeusLoading}
+            >
+              London
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuickSearch('NYC', 'New York')}
+              disabled={amadeusLoading}
+            >
+              New York
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleQuickSearch('TYO', 'Tokyo')}
+              disabled={amadeusLoading}
+            >
+              Tokyo
+            </Button>
+          </div>
           
           {/* Search and Filter */}
           <div className="flex flex-col md:flex-row gap-4 mb-6">
@@ -113,6 +171,12 @@ const Destinations = () => {
               </Button>
             </div>
           </div>
+
+          {amadeusLoading && (
+            <div className="text-center py-4">
+              <div className="text-travel-600">Searching for real hotels...</div>
+            </div>
+          )}
         </div>
 
         {/* Destinations Grid */}
@@ -122,7 +186,7 @@ const Destinations = () => {
           ))}
         </div>
 
-        {filteredDestinations.length === 0 && (
+        {filteredDestinations.length === 0 && !amadeusLoading && (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">No destinations found matching your criteria.</p>
           </div>

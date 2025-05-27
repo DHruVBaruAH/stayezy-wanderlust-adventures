@@ -1,8 +1,49 @@
 
 import { Button } from '@/components/ui/button';
 import { Search } from 'lucide-react';
+import { useState } from 'react';
+import { useAmadeusSearch } from '@/hooks/useAmadeusSearch';
+import { useNavigate } from 'react-router-dom';
 
 const Hero = () => {
+  const [destination, setDestination] = useState('');
+  const [checkIn, setCheckIn] = useState('');
+  const [checkOut, setCheckOut] = useState('');
+  const { searchHotels, loading } = useAmadeusSearch();
+  const navigate = useNavigate();
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!destination || !checkIn || !checkOut) {
+      return;
+    }
+
+    // Map common city names to IATA codes for Amadeus
+    const cityCodeMap: { [key: string]: string } = {
+      'paris': 'PAR',
+      'london': 'LON',
+      'new york': 'NYC',
+      'tokyo': 'TYO',
+      'madrid': 'MAD',
+      'rome': 'ROM',
+      'berlin': 'BER',
+      'amsterdam': 'AMS',
+    };
+
+    const cityCode = cityCodeMap[destination.toLowerCase()] || 'PAR';
+
+    await searchHotels({
+      cityCode,
+      checkInDate: checkIn,
+      checkOutDate: checkOut,
+      adults: 1,
+    });
+
+    // Navigate to destinations with search results
+    navigate('/destinations');
+  };
+
   return (
     <section className="relative min-h-[80vh] flex items-center justify-center overflow-hidden">
       {/* Background with overlay */}
@@ -29,7 +70,7 @@ const Hero = () => {
         </p>
 
         {/* Search Form */}
-        <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-2xl max-w-2xl mx-auto animate-fade-in">
+        <form onSubmit={handleSearch} className="bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-2xl max-w-2xl mx-auto animate-fade-in">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -37,7 +78,9 @@ const Hero = () => {
               </label>
               <input
                 type="text"
-                placeholder="Search destinations"
+                placeholder="Paris, London, New York..."
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-travel-500 focus:border-transparent"
               />
             </div>
@@ -48,6 +91,9 @@ const Hero = () => {
               </label>
               <input
                 type="date"
+                value={checkIn}
+                onChange={(e) => setCheckIn(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-travel-500 focus:border-transparent"
               />
             </div>
@@ -58,16 +104,23 @@ const Hero = () => {
               </label>
               <input
                 type="date"
+                value={checkOut}
+                onChange={(e) => setCheckOut(e.target.value)}
+                min={checkIn || new Date().toISOString().split('T')[0]}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-travel-500 focus:border-transparent"
               />
             </div>
           </div>
           
-          <Button className="w-full mt-6 gradient-travel text-white py-3 text-lg font-semibold hover:opacity-90 transition-opacity">
+          <Button 
+            type="submit"
+            disabled={loading}
+            className="w-full mt-6 gradient-travel text-white py-3 text-lg font-semibold hover:opacity-90 transition-opacity"
+          >
             <Search className="mr-2 h-5 w-5" />
-            Search Stays
+            {loading ? 'Searching...' : 'Search Stays'}
           </Button>
-        </div>
+        </form>
 
         {/* Quick Stats */}
         <div className="flex flex-wrap justify-center gap-8 mt-12 text-white">
