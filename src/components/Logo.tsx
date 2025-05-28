@@ -49,7 +49,7 @@ const Logo = ({
           className={cn("font-bold text-primary", textSizeClasses[size], {
             "text-white": darkMode,
           })}>
-          WanderWave
+          StayEzy
         </span>
       )}
     </div>
