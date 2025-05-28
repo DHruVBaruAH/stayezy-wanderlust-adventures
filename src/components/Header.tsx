@@ -109,7 +109,7 @@ const Header = () => {
                   <DropdownMenuItem onClick={() => navigate('/bookings')}>
                     My Bookings
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/dashboard/profile')}>
+                  <DropdownMenuItem onClick={() => navigate('/profile')}>
                     Profile
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleSignOut}>

@@ -18,6 +18,7 @@ import ContactUs from "./pages/ContactUs";
 import Experiences from "./pages/Experiences";
 import SignUp from "./pages/SignUp";
 import Dashboard from "./pages/Dashboard";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,10 @@ const App = () => (
             <Route
               path='/dashboard'
               element={<Dashboard />}
+            />
+            <Route
+              path='/profile'
+              element={<Profile />}
             />
             <Route
               path='/destinations'
