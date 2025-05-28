@@ -3,9 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, User } from "lucide-react";
 import Logo from "./Logo";
+import { useNavigate } from "react-router-dom";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <header className='bg-background border-b border-border sticky top-0 z-50 backdrop-blur-sm'>
@@ -30,16 +32,16 @@ const Header = () => {
 
           {/* Navigation */}
           <nav className='hidden md:flex items-center space-x-6'>
-            <a
-              href='#'
-              className='text-secondary hover:text-primary transition-colors'>
+            <button
+              onClick={() => navigate('/destinations')}
+              className='text-secondary hover:text-primary transition-colors bg-transparent border-none outline-none cursor-pointer'>
               Destinations
-            </a>
-            <a
-              href='#'
-              className='text-secondary hover:text-primary transition-colors'>
+            </button>
+            <button
+              onClick={() => navigate('/experiences')}
+              className='text-secondary hover:text-primary transition-colors bg-transparent border-none outline-none cursor-pointer'>
               Experiences
-            </a>
+            </button>
             <a
               href='#'
               className='text-secondary hover:text-primary transition-colors'>
@@ -51,12 +53,16 @@ const Header = () => {
           <div className='flex items-center space-x-4'>
             <Button
               variant='ghost'
-              className='hidden md:inline-flex'>
+              className='hidden md:inline-flex'
+              onClick={() => navigate('/auth')}
+            >
               Sign In
             </Button>
             <Button
               variant='accent'
-              className='hover:opacity-90 transition-opacity'>
+              className='hover:opacity-90 transition-opacity'
+              onClick={() => navigate('/auth?mode=signup')}
+            >
               Sign Up
             </Button>
             <Button

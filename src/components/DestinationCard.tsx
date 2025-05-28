@@ -1,8 +1,8 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
+import { amadeusService } from '@/services/amadeusService';
 
 interface Destination {
   id: string;
@@ -14,6 +14,7 @@ interface Destination {
   image_url: string;
   amenities: string[];
   max_guests: number;
+  amadeus_data?: { id: string };
 }
 
 interface DestinationCardProps {
@@ -22,9 +23,27 @@ interface DestinationCardProps {
 
 const DestinationCard = ({ destination }: DestinationCardProps) => {
   const navigate = useNavigate();
+  const [showBooking, setShowBooking] = useState(false);
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingResult, setBookingResult] = useState<string | null>(null);
 
   const handleViewDetails = () => {
     navigate(`/destination/${destination.id}`);
+  };
+
+  const handleBookNow = async (guestName: string, guestEmail: string) => {
+    setBookingLoading(true);
+    setBookingResult(null);
+    try {
+      const offerId = destination.amadeus_data?.id || destination.id;
+      const guestInfo = { name: guestName, email: guestEmail };
+      const result = await amadeusService.bookHotel(offerId, guestInfo);
+      setBookingResult(result.success ? 'Booking successful!' : 'Booking failed.');
+    } catch (e) {
+      setBookingResult('Booking failed.');
+    } finally {
+      setBookingLoading(false);
+    }
   };
 
   return (
@@ -72,12 +91,34 @@ const DestinationCard = ({ destination }: DestinationCardProps) => {
             )}
           </div>
         </div>
-        <Button 
-          onClick={handleViewDetails}
-          className="w-full gradient-travel text-white hover:opacity-90 transition-opacity"
-        >
-          View Details
-        </Button>
+        <div className="p-4 flex flex-col gap-2">
+          <Button onClick={handleViewDetails} variant="outline" className="w-full">View Details</Button>
+          {destination.amadeus_data && (
+            <Button onClick={() => setShowBooking(true)} className="w-full" variant="accent">Book Now</Button>
+          )}
+          {showBooking && (
+            <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+              <div className="bg-white p-6 rounded shadow-lg w-full max-w-xs flex flex-col gap-4">
+                <h2 className="text-lg font-bold">Book Hotel</h2>
+                <input type="text" placeholder="Your Name" className="border p-2 rounded" id="guestName" />
+                <input type="email" placeholder="Your Email" className="border p-2 rounded" id="guestEmail" />
+                <Button
+                  onClick={() => {
+                    const guestName = (document.getElementById('guestName') as HTMLInputElement)?.value;
+                    const guestEmail = (document.getElementById('guestEmail') as HTMLInputElement)?.value;
+                    handleBookNow(guestName, guestEmail);
+                  }}
+                  disabled={bookingLoading}
+                  className="w-full"
+                >
+                  {bookingLoading ? 'Booking...' : 'Confirm Booking'}
+                </Button>
+                {bookingResult && <div className="text-center text-green-600">{bookingResult}</div>}
+                <Button variant="ghost" onClick={() => setShowBooking(false)} className="w-full">Close</Button>
+              </div>
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

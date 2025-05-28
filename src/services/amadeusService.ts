@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface HotelSearchParams {
@@ -134,5 +133,22 @@ export const amadeusService = {
       max_guests: firstOffer?.guests.adults || 2,
       amadeus_data: offer, // Store original data for booking
     };
+  },
+
+  async bookHotel(offerId: string, guestInfo: any): Promise<any> {
+    try {
+      const { data, error } = await supabase.functions.invoke('amadeus-api', {
+        body: {
+          action: 'bookHotel',
+          offerId,
+          guestInfo,
+        },
+      });
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Error booking hotel:', error);
+      throw error;
+    }
   },
 };

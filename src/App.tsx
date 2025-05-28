@@ -14,6 +14,8 @@ import AboutUs from "./pages/AboutUs";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsOfService from "./pages/TermsOfService";
 import ContactUs from "./pages/ContactUs";
+import Experiences from "./pages/Experiences";
+import SignUp from "./pages/SignUp";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +34,10 @@ const App = () => (
             <Route
               path='/auth'
               element={<Auth />}
+            />
+            <Route
+              path='/auth/signup'
+              element={<SignUp />}
             />
             <Route
               path='/destinations'
@@ -60,6 +66,10 @@ const App = () => (
             <Route
               path='/contact'
               element={<ContactUs />}
+            />
+            <Route
+              path='/experiences'
+              element={<Experiences />}
             />
             <Route
               path='*'

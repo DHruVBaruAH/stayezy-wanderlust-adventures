@@ -4,28 +4,24 @@ import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { CalendarDays, Users, MapPin } from "lucide-react";
 
-interface Booking {
+interface AmadeusBooking {
   id: string;
-  check_in_date: string;
-  check_out_date: string;
-  guests: number;
-  total_price: number;
+  offer_id: string;
+  guest_name: string;
+  guest_email: string;
   status: string;
-  destinations: {
-    id: string;
-    name: string;
-    location: string;
-    image_url: string;
-  };
+  created_at: string;
 }
 
 const Bookings = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [bookings, setBookings] = useState<AmadeusBooking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancelling, setCancelling] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [userName, setUserName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -33,26 +29,16 @@ const Bookings = () => {
       return;
     }
     fetchBookings();
+    fetchUserName();
   }, [user]);
 
   const fetchBookings = async () => {
     try {
-      const { data, error } = await supabase
-        .from("bookings")
-        .select(
-          `
-          *,
-          destinations (
-            id,
-            name,
-            location,
-            image_url
-          )
-        `
-        )
+      const { data, error } = await (supabase as any)
+        .from("amadeus_bookings")
+        .select("*")
         .eq("user_id", user?.id)
         .order("created_at", { ascending: false });
-
       if (error) throw error;
       setBookings(data || []);
     } catch (error) {
@@ -61,6 +47,41 @@ const Bookings = () => {
       setLoading(false);
     }
   };
+
+  const fetchUserName = async () => {
+    const { data, error } = await (supabase as any)
+      .from("profiles")
+      .select("name")
+      .eq("id", user.id)
+      .single();
+    if (data && data.name) setUserName(data.name);
+  };
+
+  const handleCancel = async (bookingId: string) => {
+    setCancelling(bookingId);
+    try {
+      const { error } = await supabase
+        .from("amadeus_bookings")
+        .update({ status: "cancelled" })
+        .eq("id", bookingId);
+      if (error) throw error;
+      fetchBookings();
+    } catch (error) {
+      alert("Failed to cancel booking.");
+    } finally {
+      setCancelling(null);
+    }
+  };
+
+  // Group bookings
+  const now = new Date();
+  const upcoming = bookings.filter(
+    (b) => b.status === "confirmed" && new Date(b.created_at) > now
+  );
+  const current = bookings.filter(
+    (b) => b.status === "confirmed" && new Date(b.created_at) <= now
+  );
+  const past = bookings.filter((b) => b.status !== "confirmed");
 
   if (loading) {
     return (
@@ -72,102 +93,97 @@ const Bookings = () => {
 
   return (
     <div className='min-h-screen bg-gray-50'>
-      <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
-        <h1 className='text-3xl font-bold text-gray-900 mb-8'>My Bookings</h1>
-
-        {bookings.length === 0 ? (
-          <div className='text-center py-12'>
-            <p className='text-gray-500 text-lg mb-4'>
-              You haven't made any bookings yet.
-            </p>
-            <Button
-              onClick={() => navigate("/destinations")}
-              className='gradient-travel text-white'>
-              Explore Destinations
-            </Button>
+      <div className='max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
+        <h1 className='text-3xl font-bold text-gray-900 mb-2'>
+          My Bookings
+        </h1>
+        {userName && (
+          <div className='text-lg text-gray-700 mb-6'>
+            Welcome, {userName}!
           </div>
-        ) : (
-          <div className='grid gap-6'>
-            {bookings.map((booking) => (
-              <Card
-                key={booking.id}
-                className='overflow-hidden'>
-                <div className='md:flex'>
-                  <div className='md:w-48'>
-                    <img
-                      src={booking.destinations.image_url}
-                      alt={booking.destinations.name}
-                      className='w-full h-48 md:h-full object-cover'
-                    />
-                  </div>
-                  <div className='flex-1 p-6'>
-                    <div className='flex justify-between items-start mb-4'>
-                      <div>
-                        <h3 className='text-xl font-bold text-gray-900 mb-2'>
-                          {booking.destinations.name}
-                        </h3>
-                        <div className='flex items-center gap-2 text-gray-600 mb-4'>
-                          <MapPin className='h-4 w-4' />
-                          <span>{booking.destinations.location}</span>
-                        </div>
-                      </div>
-                      <div className='text-right'>
-                        <div className='text-2xl font-bold text-gray-900'>
-                          ${booking.total_price}
-                        </div>
-                        <div
-                          className={`text-sm px-2 py-1 rounded-full ${
-                            booking.status === "confirmed"
-                              ? "bg-green-100 text-green-800"
-                              : booking.status === "pending"
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-red-100 text-red-800"
-                          }`}>
-                          {booking.status.charAt(0).toUpperCase() +
-                            booking.status.slice(1)}
-                        </div>
-                      </div>
-                    </div>
+        )}
 
-                    <div className='grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600'>
-                      <div className='flex items-center gap-2'>
-                        <CalendarDays className='h-4 w-4' />
-                        <span>
-                          Check-in:{" "}
-                          {new Date(booking.check_in_date).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className='flex items-center gap-2'>
-                        <CalendarDays className='h-4 w-4' />
-                        <span>
-                          Check-out:{" "}
-                          {new Date(
-                            booking.check_out_date
-                          ).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className='flex items-center gap-2'>
-                        <Users className='h-4 w-4' />
-                        <span>
-                          {booking.guests} guest{booking.guests > 1 ? "s" : ""}
-                        </span>
-                      </div>
+        {/* Upcoming Bookings */}
+        {upcoming.length > 0 && (
+          <div className='mb-8'>
+            <h2 className='text-xl font-semibold mb-4'>Upcoming</h2>
+            {upcoming.map((booking) => (
+              <Card key={booking.id} className='mb-4'>
+                <CardContent className='p-4'>
+                  <div className='flex flex-col md:flex-row md:items-center md:justify-between'>
+                    <div>
+                      <div className='font-bold'>Offer ID: {booking.offer_id}</div>
+                      <div>Guest: {booking.guest_name} ({booking.guest_email})</div>
+                      <div>Status: <span className='text-green-600'>{booking.status}</span></div>
+                      <div>Created: {new Date(booking.created_at).toLocaleString()}</div>
                     </div>
-
-                    <div className='mt-4'>
-                      <Button
-                        onClick={() =>
-                          navigate(`/destination/${booking.destinations.id}`)
-                        }
-                        variant='outline'
-                        size='sm'>
-                        View Destination
-                      </Button>
-                    </div>
+                    <Button
+                      variant='destructive'
+                      disabled={cancelling === booking.id}
+                      onClick={() => handleCancel(booking.id)}
+                      className='mt-4 md:mt-0'
+                    >
+                      {cancelling === booking.id ? 'Cancelling...' : 'Cancel'}
+                    </Button>
                   </div>
-                </div>
+                </CardContent>
               </Card>
             ))}
+          </div>
+        )}
+
+        {/* Current Bookings */}
+        {current.length > 0 && (
+          <div className='mb-8'>
+            <h2 className='text-xl font-semibold mb-4'>Current</h2>
+            {current.map((booking) => (
+              <Card key={booking.id} className='mb-4'>
+                <CardContent className='p-4'>
+                  <div className='flex flex-col md:flex-row md:items-center md:justify-between'>
+                    <div>
+                      <div className='font-bold'>Offer ID: {booking.offer_id}</div>
+                      <div>Guest: {booking.guest_name} ({booking.guest_email})</div>
+                      <div>Status: <span className='text-green-600'>{booking.status}</span></div>
+                      <div>Created: {new Date(booking.created_at).toLocaleString()}</div>
+                    </div>
+                    <Button
+                      variant='destructive'
+                      disabled={cancelling === booking.id}
+                      onClick={() => handleCancel(booking.id)}
+                      className='mt-4 md:mt-0'
+                    >
+                      {cancelling === booking.id ? 'Cancelling...' : 'Cancel'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Past Bookings */}
+        {past.length > 0 && (
+          <div className='mb-8'>
+            <h2 className='text-xl font-semibold mb-4'>Past/Cancelled</h2>
+            {past.map((booking) => (
+              <Card key={booking.id} className='mb-4'>
+                <CardContent className='p-4'>
+                  <div>
+                    <div className='font-bold'>Offer ID: {booking.offer_id}</div>
+                    <div>Guest: {booking.guest_name} ({booking.guest_email})</div>
+                    <div>Status: <span className='text-gray-500'>{booking.status}</span></div>
+                    <div>Created: {new Date(booking.created_at).toLocaleString()}</div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {bookings.length === 0 && (
+          <div className='text-center py-12'>
+            <p className='text-gray-500 text-lg mb-4'>You haven't made any bookings yet.</p>
+            <Button onClick={() => navigate("/destinations")} className='gradient-travel text-white'>Explore Destinations</Button>
           </div>
         )}
       </div>
