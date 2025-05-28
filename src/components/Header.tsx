@@ -1,20 +1,56 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, User } from "lucide-react";
+import { Search, User, LogOut } from "lucide-react";
 import Logo from "./Logo";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [userName, setUserName] = useState<string | null>(null);
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+
+  useEffect(() => {
+    const fetchUserName = async () => {
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('name')
+          .eq('id', user.id)
+          .single();
+        if (data && data.name) setUserName(data.name);
+      } else {
+        setUserName(null);
+      }
+    };
+    fetchUserName();
+  }, [user]);
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   return (
     <header className='bg-background border-b border-border sticky top-0 z-50 backdrop-blur-sm'>
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
         <div className='flex items-center justify-between h-16'>
           {/* Logo */}
-          <div className='flex items-center'>
+          <div className='flex items-center cursor-pointer' onClick={() => navigate('/')}>
             <Logo size='md' />
           </div>
 
@@ -42,29 +78,57 @@ const Header = () => {
               className='text-secondary hover:text-primary transition-colors bg-transparent border-none outline-none cursor-pointer'>
               Experiences
             </button>
-            <a
-              href='#'
-              className='text-secondary hover:text-primary transition-colors'>
+            <button
+              onClick={() => navigate('/about')}
+              className='text-secondary hover:text-primary transition-colors bg-transparent border-none outline-none cursor-pointer'>
               About
-            </a>
+            </button>
           </nav>
 
           {/* User Actions */}
           <div className='flex items-center space-x-4'>
-            <Button
-              variant='ghost'
-              className='hidden md:inline-flex'
-              onClick={() => navigate('/auth')}
-            >
-              Sign In
-            </Button>
-            <Button
-              variant='accent'
-              className='hover:opacity-90 transition-opacity'
-              onClick={() => navigate('/auth?mode=signup')}
-            >
-              Sign Up
-            </Button>
+            {user && userName ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    <span className="hidden md:inline">{userName}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => navigate('/dashboard')}>
+                    Dashboard
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/bookings')}>
+                    My Bookings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/dashboard/profile')}>
+                    Profile
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <>
+                <Button
+                  variant='ghost'
+                  className='hidden md:inline-flex'
+                  onClick={() => navigate('/auth')}
+                >
+                  Sign In
+                </Button>
+                <Button
+                  variant='accent'
+                  className='hover:opacity-90 transition-opacity'
+                  onClick={() => navigate('/auth/signup')}
+                >
+                  Sign Up
+                </Button>
+              </>
+            )}
             <Button
               variant='ghost'
               size='icon'

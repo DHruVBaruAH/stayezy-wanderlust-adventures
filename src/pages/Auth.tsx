@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
@@ -40,7 +41,7 @@ export default function Auth() {
           title: "Welcome back!",
           description: "Successfully signed in to your account.",
         });
-        navigate("/");
+        navigate("/dashboard");
       }
     } catch (error) {
       console.error("Sign in failed:", error);
