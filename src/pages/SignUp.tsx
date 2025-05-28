@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import AuthLayout from "@/components/layouts/AuthLayout";
 
 const SignUp = () => {
@@ -29,6 +30,20 @@ const SignUp = () => {
           description: error.message,
         });
       } else {
+        // Update the profile with the name after successful signup
+        if (name.trim()) {
+          const nameParts = name.trim().split(' ');
+          const firstName = nameParts[0];
+          const lastName = nameParts.slice(1).join(' ');
+          
+          await supabase.from('profiles').upsert({
+            id: (await supabase.auth.getUser()).data.user?.id,
+            first_name: firstName,
+            last_name: lastName || null,
+            email: email,
+          });
+        }
+        
         toast({
           title: "Welcome!",
           description: "Account created successfully. Please check your email to verify your account.",

@@ -1,26 +1,30 @@
+
 import React, { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
 
-interface AmadeusBooking {
+interface Booking {
   id: string;
-  offer_id: string;
-  guest_name: string;
-  guest_email: string;
+  destination_id: string;
   status: string;
+  check_in_date: string;
+  check_out_date: string;
+  guests: number;
+  total_price: number;
   created_at: string;
 }
 
 const Bookings = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [bookings, setBookings] = useState<AmadeusBooking[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
-  const [name, setName] = useState("");
   const [userName, setUserName] = useState<string | null>(null);
 
   useEffect(() => {
@@ -34,8 +38,8 @@ const Bookings = () => {
 
   const fetchBookings = async () => {
     try {
-      const { data, error } = await (supabase as any)
-        .from("amadeus_bookings")
+      const { data, error } = await supabase
+        .from("bookings")
         .select("*")
         .eq("user_id", user?.id)
         .order("created_at", { ascending: false });
@@ -49,19 +53,29 @@ const Bookings = () => {
   };
 
   const fetchUserName = async () => {
-    const { data, error } = await (supabase as any)
-      .from("profiles")
-      .select("name")
-      .eq("id", user.id)
-      .single();
-    if (data && data.name) setUserName(data.name);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("first_name, last_name, email")
+        .eq("id", user?.id)
+        .single();
+      
+      if (data && !error) {
+        const displayName = data.first_name 
+          ? `${data.first_name} ${data.last_name || ''}`.trim()
+          : data.email?.split('@')[0] || 'User';
+        setUserName(displayName);
+      }
+    } catch (error) {
+      console.error("Error fetching user name:", error);
+    }
   };
 
   const handleCancel = async (bookingId: string) => {
     setCancelling(bookingId);
     try {
       const { error } = await supabase
-        .from("amadeus_bookings")
+        .from("bookings")
         .update({ status: "cancelled" })
         .eq("id", bookingId);
       if (error) throw error;
@@ -76,12 +90,12 @@ const Bookings = () => {
   // Group bookings
   const now = new Date();
   const upcoming = bookings.filter(
-    (b) => b.status === "confirmed" && new Date(b.created_at) > now
+    (b) => b.status === "confirmed" && new Date(b.check_in_date) > now
   );
   const current = bookings.filter(
-    (b) => b.status === "confirmed" && new Date(b.created_at) <= now
+    (b) => b.status === "confirmed" && new Date(b.check_in_date) <= now && new Date(b.check_out_date) >= now
   );
-  const past = bookings.filter((b) => b.status !== "confirmed");
+  const past = bookings.filter((b) => b.status !== "confirmed" || new Date(b.check_out_date) < now);
 
   if (loading) {
     return (
@@ -93,6 +107,7 @@ const Bookings = () => {
 
   return (
     <div className='min-h-screen bg-gray-50'>
+      <Header />
       <div className='max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
         <h1 className='text-3xl font-bold text-gray-900 mb-2'>
           My Bookings
@@ -112,10 +127,12 @@ const Bookings = () => {
                 <CardContent className='p-4'>
                   <div className='flex flex-col md:flex-row md:items-center md:justify-between'>
                     <div>
-                      <div className='font-bold'>Offer ID: {booking.offer_id}</div>
-                      <div>Guest: {booking.guest_name} ({booking.guest_email})</div>
+                      <div className='font-bold'>Booking ID: {booking.id.slice(0, 8)}...</div>
+                      <div>Check-in: {new Date(booking.check_in_date).toLocaleDateString()}</div>
+                      <div>Check-out: {new Date(booking.check_out_date).toLocaleDateString()}</div>
+                      <div>Guests: {booking.guests}</div>
+                      <div>Total: ${booking.total_price}</div>
                       <div>Status: <span className='text-green-600'>{booking.status}</span></div>
-                      <div>Created: {new Date(booking.created_at).toLocaleString()}</div>
                     </div>
                     <Button
                       variant='destructive'
@@ -141,18 +158,19 @@ const Bookings = () => {
                 <CardContent className='p-4'>
                   <div className='flex flex-col md:flex-row md:items-center md:justify-between'>
                     <div>
-                      <div className='font-bold'>Offer ID: {booking.offer_id}</div>
-                      <div>Guest: {booking.guest_name} ({booking.guest_email})</div>
-                      <div>Status: <span className='text-green-600'>{booking.status}</span></div>
-                      <div>Created: {new Date(booking.created_at).toLocaleString()}</div>
+                      <div className='font-bold'>Booking ID: {booking.id.slice(0, 8)}...</div>
+                      <div>Check-in: {new Date(booking.check_in_date).toLocaleDateString()}</div>
+                      <div>Check-out: {new Date(booking.check_out_date).toLocaleDateString()}</div>
+                      <div>Guests: {booking.guests}</div>
+                      <div>Total: ${booking.total_price}</div>
+                      <div>Status: <span className='text-blue-600'>{booking.status}</span></div>
                     </div>
                     <Button
-                      variant='destructive'
-                      disabled={cancelling === booking.id}
-                      onClick={() => handleCancel(booking.id)}
+                      variant='outline'
+                      disabled
                       className='mt-4 md:mt-0'
                     >
-                      {cancelling === booking.id ? 'Cancelling...' : 'Cancel'}
+                      Currently Active
                     </Button>
                   </div>
                 </CardContent>
@@ -169,10 +187,12 @@ const Bookings = () => {
               <Card key={booking.id} className='mb-4'>
                 <CardContent className='p-4'>
                   <div>
-                    <div className='font-bold'>Offer ID: {booking.offer_id}</div>
-                    <div>Guest: {booking.guest_name} ({booking.guest_email})</div>
+                    <div className='font-bold'>Booking ID: {booking.id.slice(0, 8)}...</div>
+                    <div>Check-in: {new Date(booking.check_in_date).toLocaleDateString()}</div>
+                    <div>Check-out: {new Date(booking.check_out_date).toLocaleDateString()}</div>
+                    <div>Guests: {booking.guests}</div>
+                    <div>Total: ${booking.total_price}</div>
                     <div>Status: <span className='text-gray-500'>{booking.status}</span></div>
-                    <div>Created: {new Date(booking.created_at).toLocaleString()}</div>
                   </div>
                 </CardContent>
               </Card>
@@ -183,10 +203,11 @@ const Bookings = () => {
         {bookings.length === 0 && (
           <div className='text-center py-12'>
             <p className='text-gray-500 text-lg mb-4'>You haven't made any bookings yet.</p>
-            <Button onClick={() => navigate("/destinations")} className='gradient-travel text-white'>Explore Destinations</Button>
+            <Button onClick={() => navigate("/destinations")} variant="accent">Explore Destinations</Button>
           </div>
         )}
       </div>
+      <Footer />
     </div>
   );
 };

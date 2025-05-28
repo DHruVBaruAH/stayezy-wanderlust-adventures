@@ -10,10 +10,9 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
 interface UserProfile {
-  name: string;
-  email: string;
   first_name?: string;
   last_name?: string;
+  email: string;
 }
 
 interface DashboardStats {
@@ -44,23 +43,23 @@ const Dashboard = () => {
   const fetchUserData = async () => {
     try {
       // Fetch user profile
-      const { data: profileData } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
-        .select('name, email, first_name, last_name')
+        .select('first_name, last_name, email')
         .eq('id', user?.id)
         .single();
 
-      if (profileData) {
+      if (profileData && !profileError) {
         setProfile(profileData);
       }
 
-      // Fetch booking stats
-      const { data: bookingsData } = await supabase
+      // Fetch booking stats from existing bookings table
+      const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select('status, check_in_date')
         .eq('user_id', user?.id);
 
-      if (bookingsData) {
+      if (bookingsData && !bookingsError) {
         const now = new Date();
         const upcoming = bookingsData.filter(
           booking => booking.status === 'confirmed' && new Date(booking.check_in_date) > now
@@ -82,6 +81,13 @@ const Dashboard = () => {
     }
   };
 
+  const getDisplayName = () => {
+    if (profile?.first_name) {
+      return `${profile.first_name} ${profile.last_name || ''}`.trim();
+    }
+    return profile?.email?.split('@')[0] || 'there';
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -97,7 +103,7 @@ const Dashboard = () => {
         {/* Welcome Section */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome back{profile?.name ? `, ${profile.name}` : ''}!
+            Welcome back, {getDisplayName()}!
           </h1>
           <p className="text-gray-600">Manage your bookings and explore new destinations</p>
         </div>

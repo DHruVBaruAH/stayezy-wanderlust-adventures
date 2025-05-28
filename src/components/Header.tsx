@@ -23,12 +23,19 @@ const Header = () => {
   useEffect(() => {
     const fetchUserName = async () => {
       if (user) {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('profiles')
-          .select('name')
+          .select('first_name, last_name, email')
           .eq('id', user.id)
           .single();
-        if (data && data.name) setUserName(data.name);
+        
+        if (data && !error) {
+          // Create display name from available data
+          const displayName = data.first_name 
+            ? `${data.first_name} ${data.last_name || ''}`.trim()
+            : data.email?.split('@')[0] || 'User';
+          setUserName(displayName);
+        }
       } else {
         setUserName(null);
       }
