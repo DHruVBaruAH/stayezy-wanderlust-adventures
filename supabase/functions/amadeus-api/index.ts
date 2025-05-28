@@ -2,6 +2,8 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
+// Add Deno type declaration for TypeScript
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -25,6 +27,7 @@ async function getAmadeusToken(): Promise<string> {
 
   const apiKey = Deno.env.get('AMADEUS_API_KEY');
   const apiSecret = Deno.env.get('AMADEUS_API_SECRET');
+  console.log('Amadeus API Key:', apiKey, 'API Secret:', apiSecret);
 
   if (!apiKey || !apiSecret) {
     throw new Error('Amadeus API credentials not configured');
