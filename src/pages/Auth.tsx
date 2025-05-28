@@ -1,163 +1,144 @@
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/components/ui/use-toast";
+import Eye from "@/components/icons/Eye";
+import AuthLayout from "@/components/layouts/AuthLayout";
+import { useAuth } from "@/hooks/useAuth";
 
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+interface SignInForm {
+  email: string;
+  password: string;
+}
 
-const Auth = () => {
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [loading, setLoading] = useState(false);
-  
+export default function Auth() {
+  const { signIn } = useAuth();
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { toast } = useToast();
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<SignInForm>();
 
-  useEffect(() => {
-    if (user) {
-      navigate('/');
-    }
-  }, [user, navigate]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
+  const onSubmit = async (data: SignInForm) => {
+    setIsLoading(true);
     try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: {
-              first_name: firstName,
-              last_name: lastName,
-            },
-          },
-        });
-
-        if (error) throw error;
-
+      const { error } = await signIn(data.email, data.password);
+      if (error) {
         toast({
-          title: "Account created successfully!",
-          description: "Please check your email to verify your account.",
+          variant: "destructive",
+          title: "Error",
+          description: error.message,
         });
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (error) throw error;
-
         toast({
           title: "Welcome back!",
-          description: "You have successfully signed in.",
+          description: "Successfully signed in to your account.",
         });
-        navigate('/');
+        navigate("/");
       }
-    } catch (error: any) {
+    } catch (error) {
+      console.error("Sign in failed:", error);
       toast({
-        title: "Error",
-        description: error.message,
         variant: "destructive",
+        title: "Error",
+        description: "Failed to sign in. Please try again.",
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center">
-            {isSignUp ? 'Create an account' : 'Sign in to Stayezy'}
-          </CardTitle>
-          <CardDescription className="text-center">
-            {isSignUp 
-              ? 'Enter your details to create your account' 
-              : 'Enter your email and password to sign in'
-            }
-          </CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            {isSignUp && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="firstName">First Name</Label>
-                  <Input
-                    id="firstName"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lastName">Last Name</Label>
-                  <Input
-                    id="lastName"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required
-                  />
-                </div>
-              </div>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <Button 
-              type="submit" 
-              className="w-full gradient-travel text-white" 
-              disabled={loading}
-            >
-              {loading ? 'Loading...' : (isSignUp ? 'Sign Up' : 'Sign In')}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full"
-              onClick={() => setIsSignUp(!isSignUp)}
-            >
-              {isSignUp 
-                ? 'Already have an account? Sign in' 
-                : "Don't have an account? Sign up"
-              }
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
-    </div>
-  );
-};
+    <AuthLayout
+      title='Welcome Back'
+      subtitle='Sign in to continue exploring amazing destinations'>
+      <form
+        className='flex flex-col gap-6'
+        onSubmit={handleSubmit(onSubmit)}>
+        <div className='flex flex-col gap-1.5'>
+          <label className='text-sm font-medium text-secondary'>Email</label>
+          <Input
+            type='email'
+            placeholder='Enter your email'
+            {...register("email", {
+              required: "Email is required",
+              pattern: {
+                value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                message: "Invalid email address",
+              },
+            })}
+          />
+          {errors.email && (
+            <span className='text-sm text-destructive'>
+              {errors.email.message}
+            </span>
+          )}
+        </div>
 
-export default Auth;
+        <div className='flex flex-col gap-1.5'>
+          <label className='text-sm font-medium text-secondary'>Password</label>
+          <div className='relative'>
+            <Input
+              type={showPassword ? "text" : "password"}
+              placeholder='Enter your password'
+              {...register("password", {
+                required: "Password is required",
+                minLength: {
+                  value: 6,
+                  message: "Password must be at least 6 characters",
+                },
+              })}
+            />
+            <button
+              type='button'
+              className='absolute right-3 top-1/2 -translate-y-1/2 text-secondary hover:text-primary'
+              onClick={() => setShowPassword(!showPassword)}>
+              <Eye
+                isOpen={showPassword}
+                className='h-5 w-5'
+              />
+            </button>
+          </div>
+          {errors.password && (
+            <span className='text-sm text-destructive'>
+              {errors.password.message}
+            </span>
+          )}
+          <div className='flex justify-end'>
+            <button
+              type='button'
+              onClick={() => navigate("/auth/reset-password")}
+              className='text-sm text-primary hover:text-primary/80'>
+              Forgot password?
+            </button>
+          </div>
+        </div>
+
+        <Button
+          type='submit'
+          className='w-full'
+          disabled={isLoading}
+          variant='accent'
+          size='lg'>
+          {isLoading ? "Signing in..." : "Sign in"}
+        </Button>
+
+        <p className='text-center text-sm text-secondary'>
+          Don't have an account?{" "}
+          <button
+            type='button'
+            onClick={() => navigate("/auth/signup")}
+            className='font-medium text-primary hover:text-primary/80'>
+            Create new account
+          </button>
+        </p>
+      </form>
+    </AuthLayout>
+  );
+}
