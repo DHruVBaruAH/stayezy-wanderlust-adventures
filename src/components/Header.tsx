@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +16,7 @@ import {
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [userName, setUserName] = useState<string | null>(null);
+  const [searchValue, setSearchValue] = useState("");
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
 
@@ -63,14 +63,26 @@ const Header = () => {
 
           {/* Search Bar - Hidden on mobile */}
           <div className='hidden md:flex items-center flex-1 max-w-md mx-8'>
-            <div className='relative w-full'>
+            <form
+              className='relative w-full'
+              onSubmit={e => {
+                e.preventDefault();
+                if (searchValue.trim()) {
+                  navigate(`/destinations?search=${encodeURIComponent(searchValue)}`);
+                } else {
+                  navigate('/destinations');
+                }
+              }}
+            >
               <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 text-secondary h-4 w-4' />
               <Input
                 type='text'
                 placeholder='Search destinations...'
                 className='pl-10 pr-4 py-2 w-full rounded-full border-input focus:border-primary focus:ring-primary'
+                value={searchValue}
+                onChange={e => setSearchValue(e.target.value)}
               />
-            </div>
+            </form>
           </div>
 
           {/* Navigation */}
@@ -148,14 +160,26 @@ const Header = () => {
 
         {/* Mobile Search */}
         <div className='md:hidden pb-4'>
-          <div className='relative'>
+          <form
+            className='relative'
+            onSubmit={e => {
+              e.preventDefault();
+              if (searchValue.trim()) {
+                navigate(`/destinations?search=${encodeURIComponent(searchValue)}`);
+              } else {
+                navigate('/destinations');
+              }
+            }}
+          >
             <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 text-secondary h-4 w-4' />
             <Input
               type='text'
               placeholder='Search destinations...'
               className='pl-10 pr-4 py-2 w-full rounded-full border-input focus:border-primary focus:ring-primary'
+              value={searchValue}
+              onChange={e => setSearchValue(e.target.value)}
             />
-          </div>
+          </form>
         </div>
       </div>
     </header>

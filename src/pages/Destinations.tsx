@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import DestinationCard from '@/components/DestinationCard';
@@ -6,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, Filter } from 'lucide-react';
 import { useAmadeusSearch } from '@/hooks/useAmadeusSearch';
+import { useLocation } from 'react-router-dom';
 
 interface Destination {
   id: string;
@@ -26,10 +26,18 @@ const Destinations = () => {
   const [priceFilter, setPriceFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const { hotels: amadeusHotels, loading: amadeusLoading, searchHotels } = useAmadeusSearch();
+  const location = useLocation();
 
   useEffect(() => {
     fetchDestinations();
   }, []);
+
+  // Sync searchTerm with URL query param
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const search = params.get('search') || '';
+    setSearchTerm(search);
+  }, [location.search]);
 
   const fetchDestinations = async () => {
     try {
