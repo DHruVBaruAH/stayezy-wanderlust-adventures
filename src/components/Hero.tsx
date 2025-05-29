@@ -1,39 +1,32 @@
+
 import { Button } from "@/components/ui/button";
-import { Search } from "lucide-react";
 import { useState } from "react";
 import { useAmadeusSearch } from "@/hooks/useAmadeusSearch";
 import { useNavigate } from "react-router-dom";
+import SmartSearch from "./SmartSearch";
 
 const Hero = () => {
-  const [destination, setDestination] = useState("");
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
+  const [currentCityCode, setCurrentCityCode] = useState("");
+  const [currentCityName, setCurrentCityName] = useState("");
   const { searchHotels, loading } = useAmadeusSearch();
   const navigate = useNavigate();
+
+  const handleCitySearch = (cityCode: string, cityName: string) => {
+    setCurrentCityCode(cityCode);
+    setCurrentCityName(cityName);
+  };
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!destination || !checkIn || !checkOut) {
+    if (!currentCityCode || !checkIn || !checkOut) {
       return;
     }
 
-    // Map common city names to IATA codes for Amadeus
-    const cityCodeMap: { [key: string]: string } = {
-      paris: "PAR",
-      london: "LON",
-      "new york": "NYC",
-      tokyo: "TYO",
-      madrid: "MAD",
-      rome: "ROM",
-      berlin: "BER",
-      amsterdam: "AMS",
-    };
-
-    const cityCode = cityCodeMap[destination.toLowerCase()] || "PAR";
-
     await searchHotels({
-      cityCode,
+      cityCode: currentCityCode,
       checkInDate: checkIn,
       checkOutDate: checkOut,
       adults: 1,
@@ -76,13 +69,16 @@ const Hero = () => {
               <label className='block text-sm font-medium text-gray-700 mb-2'>
                 Where to?
               </label>
-              <input
-                type='text'
-                placeholder='Paris, London, New York...'
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                className='w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-travel-500 focus:border-transparent'
+              <SmartSearch
+                onSearch={handleCitySearch}
+                placeholder="Paris, London, New York..."
+                loading={loading}
               />
+              {currentCityName && (
+                <div className="text-xs text-gray-500 mt-1">
+                  Selected: {currentCityName}
+                </div>
+              )}
             </div>
 
             <div>
@@ -92,10 +88,9 @@ const Hero = () => {
               <input
                 type='date'
                 value={checkIn}
-                placeholder='dd/mm/yyyy'
                 onChange={(e) => setCheckIn(e.target.value)}
                 min={new Date().toISOString().split("T")[0]}
-                className='w-full px-4 py-3 select-non border border-gray-300 rounded-lg focus:ring-2 focus:ring-travel-500 focus:border-transparent'
+                className='w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-travel-500 focus:border-transparent'
               />
             </div>
 
@@ -104,21 +99,19 @@ const Hero = () => {
                 Check-out
               </label>
               <input
-                placeholder='dd/mm/yyyy'
                 type='date'
                 value={checkOut}
                 onChange={(e) => setCheckOut(e.target.value)}
                 min={checkIn || new Date().toISOString().split("T")[0]}
-                className='w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-travel-500 focus:border-transparent select-none'
+                className='w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-travel-500 focus:border-transparent'
               />
             </div>
           </div>
 
           <Button
             type='submit'
-            disabled={loading}
+            disabled={loading || !currentCityCode || !checkIn || !checkOut}
             className='w-full mt-6 gradient-travel text-white py-3 text-lg font-semibold hover:opacity-90 transition-opacity'>
-            <Search className='mr-2 h-5 w-5' />
             {loading ? "Searching..." : "Search Stays"}
           </Button>
         </form>

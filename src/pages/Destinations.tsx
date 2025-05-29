@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import DestinationCard from '@/components/DestinationCard';
@@ -6,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Search, Filter } from 'lucide-react';
 import { useAmadeusSearch } from '@/hooks/useAmadeusSearch';
 import { useLocation } from 'react-router-dom';
+import { findCityByQuery } from '@/utils/cityDatabase';
+import SmartSearch from '@/components/SmartSearch';
 
 interface Destination {
   id: string;
@@ -32,11 +35,15 @@ const Destinations = () => {
     fetchDestinations();
   }, []);
 
-  // Sync searchTerm with URL query param
+  // Sync searchTerm with URL query param and trigger smart search
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const search = params.get('search') || '';
     setSearchTerm(search);
+    
+    if (search) {
+      handleSmartSearch(search);
+    }
   }, [location.search]);
 
   const fetchDestinations = async () => {
@@ -52,6 +59,24 @@ const Destinations = () => {
       console.error('Error fetching destinations:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSmartSearch = async (query: string) => {
+    const city = findCityByQuery(query);
+    if (city) {
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const dayAfter = new Date(today);
+      dayAfter.setDate(dayAfter.getDate() + 2);
+
+      await searchHotels({
+        cityCode: city.iataCode,
+        checkInDate: tomorrow.toISOString().split('T')[0],
+        checkOutDate: dayAfter.toISOString().split('T')[0],
+        adults: 1,
+      });
     }
   };
 
@@ -85,6 +110,11 @@ const Destinations = () => {
     });
   };
 
+  const handleDestinationSearch = (cityCode: string, cityName: string) => {
+    setSearchTerm(cityName);
+    handleQuickSearch(cityCode, cityName);
+  };
+
   if (loading && !amadeusLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -98,6 +128,16 @@ const Destinations = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">All Destinations</h1>
+          
+          {/* Smart Search */}
+          <div className="mb-6">
+            <SmartSearch
+              onSearch={handleDestinationSearch}
+              placeholder="Search for any destination..."
+              loading={amadeusLoading}
+              className="max-w-md"
+            />
+          </div>
           
           {/* Quick Search Buttons */}
           <div className="flex flex-wrap gap-2 mb-6">
@@ -141,7 +181,7 @@ const Destinations = () => {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
-                placeholder="Search destinations..."
+                placeholder="Filter current results..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -197,6 +237,7 @@ const Destinations = () => {
         {filteredDestinations.length === 0 && !amadeusLoading && (
           <div className="text-center py-12">
             <p className="text-gray-500 text-lg">No destinations found matching your criteria.</p>
+            <p className="text-gray-400 text-sm mt-2">Try searching for popular destinations like Paris, London, or New York.</p>
           </div>
         )}
       </div>

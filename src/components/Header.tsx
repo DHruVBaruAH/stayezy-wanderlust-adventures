@@ -1,11 +1,12 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Search, User, LogOut } from "lucide-react";
+import { User, LogOut } from "lucide-react";
 import Logo from "./Logo";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import SmartSearch from "./SmartSearch";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +17,6 @@ import {
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [userName, setUserName] = useState<string | null>(null);
-  const [searchValue, setSearchValue] = useState("");
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
 
@@ -30,7 +30,6 @@ const Header = () => {
           .single();
         
         if (data && !error) {
-          // Create display name from available data
           const displayName = data.first_name 
             ? `${data.first_name} ${data.last_name || ''}`.trim()
             : data.email?.split('@')[0] || 'User';
@@ -52,6 +51,10 @@ const Header = () => {
     }
   };
 
+  const handleSearch = (cityCode: string, cityName: string) => {
+    navigate(`/destinations?search=${encodeURIComponent(cityName)}`);
+  };
+
   return (
     <header className='bg-background border-b border-border sticky top-0 z-50 backdrop-blur-sm'>
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
@@ -63,26 +66,11 @@ const Header = () => {
 
           {/* Search Bar - Hidden on mobile */}
           <div className='hidden md:flex items-center flex-1 max-w-md mx-8'>
-            <form
-              className='relative w-full'
-              onSubmit={e => {
-                e.preventDefault();
-                if (searchValue.trim()) {
-                  navigate(`/destinations?search=${encodeURIComponent(searchValue)}`);
-                } else {
-                  navigate('/destinations');
-                }
-              }}
-            >
-              <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 text-secondary h-4 w-4' />
-              <Input
-                type='text'
-                placeholder='Search destinations...'
-                className='pl-10 pr-4 py-2 w-full rounded-full border-input focus:border-primary focus:ring-primary'
-                value={searchValue}
-                onChange={e => setSearchValue(e.target.value)}
-              />
-            </form>
+            <SmartSearch
+              onSearch={handleSearch}
+              placeholder="Search destinations..."
+              className="w-full"
+            />
           </div>
 
           {/* Navigation */}
@@ -160,26 +148,11 @@ const Header = () => {
 
         {/* Mobile Search */}
         <div className='md:hidden pb-4'>
-          <form
-            className='relative'
-            onSubmit={e => {
-              e.preventDefault();
-              if (searchValue.trim()) {
-                navigate(`/destinations?search=${encodeURIComponent(searchValue)}`);
-              } else {
-                navigate('/destinations');
-              }
-            }}
-          >
-            <Search className='absolute left-3 top-1/2 transform -translate-y-1/2 text-secondary h-4 w-4' />
-            <Input
-              type='text'
-              placeholder='Search destinations...'
-              className='pl-10 pr-4 py-2 w-full rounded-full border-input focus:border-primary focus:ring-primary'
-              value={searchValue}
-              onChange={e => setSearchValue(e.target.value)}
-            />
-          </form>
+          <SmartSearch
+            onSearch={handleSearch}
+            placeholder="Search destinations..."
+            className="w-full"
+          />
         </div>
       </div>
     </header>
