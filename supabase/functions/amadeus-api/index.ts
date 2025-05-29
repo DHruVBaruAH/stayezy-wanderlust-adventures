@@ -1,8 +1,7 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-// Add Deno type declaration for TypeScript
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,9 +16,10 @@ interface AmadeusToken {
 
 let tokenCache: { token: string; expiresAt: number } | null = null;
 
-const supabaseUrl = Deno.env.get('https://purxymgnptnnldvbqity.supabase.co');
-const supabaseKey = Deno.env.get('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1cnh5bWducHRubmxkdmJxaXR5Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0ODE4MTM0NywiZXhwIjoyMDYzNzU3MzQ3fQ.5Wshtm6xFhH10W1Qbn2sE1YtYgIGl3XFWVezN9bxxlY');
-const supabase = createClient(supabaseUrl, supabaseKey);
+// Fix the Supabase client initialization
+const supabaseUrl = Deno.env.get('SUPABASE_URL') || 'https://purxymgnptnnldvbqity.supabase.co';
+const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+const supabase = createClient(supabaseUrl, supabaseKey!);
 
 async function getAmadeusToken(): Promise<string> {
   const now = Date.now();
@@ -29,9 +29,10 @@ async function getAmadeusToken(): Promise<string> {
     return tokenCache.token;
   }
 
-  const apiKey = Deno.env.get('ZASAVdrW5SZmPiPzYdjRfZUyL5A66KEe');
-  const apiSecret = Deno.env.get('zoGNUNsj9FC1opAL');
-  console.log('Amadeus API Key:', apiKey, 'API Secret:', apiSecret);
+  const apiKey = Deno.env.get('AMADEUS_API_KEY');
+  const apiSecret = Deno.env.get('AMADEUS_API_SECRET');
+  
+  console.log('Getting Amadeus token...');
 
   if (!apiKey || !apiSecret) {
     throw new Error('Amadeus API credentials not configured');
@@ -46,7 +47,9 @@ async function getAmadeusToken(): Promise<string> {
   });
 
   if (!response.ok) {
-    throw new Error('Failed to get Amadeus token');
+    const errorText = await response.text();
+    console.error('Failed to get Amadeus token:', response.status, errorText);
+    throw new Error(`Failed to get Amadeus token: ${response.status}`);
   }
 
   const data: AmadeusToken = await response.json();
@@ -57,6 +60,7 @@ async function getAmadeusToken(): Promise<string> {
     expiresAt: now + (data.expires_in - 300) * 1000,
   };
 
+  console.log('Amadeus token obtained successfully');
   return data.access_token;
 }
 
@@ -71,6 +75,8 @@ async function searchHotels(params: any) {
     ...(params.roomQuantity && { roomQuantity: params.roomQuantity.toString() }),
   });
 
+  console.log('Searching hotels with params:', searchParams.toString());
+
   const response = await fetch(`https://test.api.amadeus.com/v3/shopping/hotel-offers?${searchParams}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -78,7 +84,9 @@ async function searchHotels(params: any) {
   });
 
   if (!response.ok) {
-    throw new Error('Failed to search hotels');
+    const errorText = await response.text();
+    console.error('Failed to search hotels:', response.status, errorText);
+    throw new Error(`Failed to search hotels: ${response.status}`);
   }
 
   return await response.json();
@@ -101,41 +109,60 @@ async function getHotelOffers(hotelIds: string[], params: any) {
   });
 
   if (!response.ok) {
-    throw new Error('Failed to get hotel offers');
+    const errorText = await response.text();
+    console.error('Failed to get hotel offers:', response.status, errorText);
+    throw new Error(`Failed to get hotel offers: ${response.status}`);
   }
 
   return await response.json();
 }
 
-async function bookHotel(offerId, guestInfo, userId) {
+async function bookHotel(offerId: string, guestInfo: any, userId: string) {
   // Simulate booking (Amadeus test env does not support real bookings)
-  // Insert booking record into Supabase
-  const { data, error } = await (supabase as any)
-    .from("amadeus_bookings")
-    .insert({
-      user_id: userId,
-      offer_id: offerId,
-      guest_name: guestInfo.name,
-      guest_email: guestInfo.email,
-      status: 'confirmed',
-    })
-    .select();
-  if (error) {
+  console.log('Simulating hotel booking...');
+  
+  try {
+    const { data, error } = await supabase
+      .from("bookings")
+      .insert({
+        user_id: userId,
+        destination_id: offerId,
+        guests: 1,
+        total_price: 100,
+        check_in_date: new Date().toISOString().split('T')[0],
+        check_out_date: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+        status: 'confirmed',
+      })
+      .select();
+
+    if (error) {
+      console.error('Database error:', error);
+      return {
+        success: false,
+        message: 'Booking simulated but failed to record in DB',
+        offerId,
+        guestInfo,
+        error: error.message,
+      };
+    }
+
     return {
-      success: false,
-      message: 'Booking simulated but failed to record in DB',
+      success: true,
+      message: 'Booking simulated successfully (Amadeus test env)',
       offerId,
       guestInfo,
-      error: error.message,
+      bookingId: data?.[0]?.id,
+    };
+  } catch (dbError) {
+    console.error('Database operation failed:', dbError);
+    return {
+      success: false,
+      message: 'Booking simulated but database operation failed',
+      offerId,
+      guestInfo,
+      error: dbError.message,
     };
   }
-  return {
-    success: true,
-    message: 'Booking simulated (Amadeus test env)',
-    offerId,
-    guestInfo,
-    bookingId: data?.[0]?.id,
-  };
 }
 
 serve(async (req) => {
@@ -145,6 +172,7 @@ serve(async (req) => {
 
   try {
     const { action, ...params } = await req.json();
+    console.log('Edge function called with action:', action);
 
     let result;
     switch (action) {
@@ -158,7 +186,7 @@ serve(async (req) => {
         result = await bookHotel(params.offerId, params.guestInfo, params.userId);
         break;
       default:
-        throw new Error('Invalid action');
+        throw new Error(`Invalid action: ${action}`);
     }
 
     return new Response(JSON.stringify(result), {
