@@ -16,7 +16,6 @@ interface AmadeusToken {
 
 let tokenCache: { token: string; expiresAt: number } | null = null;
 
-// Fix the Supabase client initialization
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || 'https://purxymgnptnnldvbqity.supabase.co';
 const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 const supabase = createClient(supabaseUrl, supabaseKey!);
@@ -24,7 +23,6 @@ const supabase = createClient(supabaseUrl, supabaseKey!);
 async function getAmadeusToken(): Promise<string> {
   const now = Date.now();
   
-  // Return cached token if still valid
   if (tokenCache && tokenCache.expiresAt > now) {
     return tokenCache.token;
   }
@@ -54,7 +52,6 @@ async function getAmadeusToken(): Promise<string> {
 
   const data: AmadeusToken = await response.json();
   
-  // Cache token with 5 minutes buffer before expiry
   tokenCache = {
     token: data.access_token,
     expiresAt: now + (data.expires_in - 300) * 1000,
@@ -67,29 +64,62 @@ async function getAmadeusToken(): Promise<string> {
 async function searchHotels(params: any) {
   const token = await getAmadeusToken();
   
+  // First, search for hotels by city to get hotel IDs
   const searchParams = new URLSearchParams({
     cityCode: params.cityCode || 'PAR',
+  });
+
+  console.log('Searching hotels by city with params:', searchParams.toString());
+
+  const hotelsResponse = await fetch(`https://test.api.amadeus.com/v1/reference-data/locations/hotels/by-city?${searchParams}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!hotelsResponse.ok) {
+    const errorText = await hotelsResponse.text();
+    console.error('Failed to search hotels by city:', hotelsResponse.status, errorText);
+    throw new Error(`Failed to search hotels by city: ${hotelsResponse.status}`);
+  }
+
+  const hotelsData = await hotelsResponse.json();
+  console.log('Found hotels:', hotelsData.data?.length || 0);
+
+  if (!hotelsData.data || hotelsData.data.length === 0) {
+    return { data: [] };
+  }
+
+  // Get hotel IDs (limit to first 20 for API limits)
+  const hotelIds = hotelsData.data.slice(0, 20).map((hotel: any) => hotel.hotelId);
+  
+  // Now search for offers using hotel IDs
+  const offersParams = new URLSearchParams({
+    hotelIds: hotelIds.join(','),
     checkInDate: params.checkInDate,
     checkOutDate: params.checkOutDate,
     adults: params.adults?.toString() || '1',
     ...(params.roomQuantity && { roomQuantity: params.roomQuantity.toString() }),
   });
 
-  console.log('Searching hotels with params:', searchParams.toString());
+  console.log('Searching hotel offers with params:', offersParams.toString());
 
-  const response = await fetch(`https://test.api.amadeus.com/v3/shopping/hotel-offers?${searchParams}`, {
+  const offersResponse = await fetch(`https://test.api.amadeus.com/v3/shopping/hotel-offers?${offersParams}`, {
     headers: {
       'Authorization': `Bearer ${token}`,
     },
   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Failed to search hotels:', response.status, errorText);
-    throw new Error(`Failed to search hotels: ${response.status}`);
+  if (!offersResponse.ok) {
+    const errorText = await offersResponse.text();
+    console.error('Failed to get hotel offers:', offersResponse.status, errorText);
+    throw new Error(`Failed to get hotel offers: ${offersResponse.status}`);
   }
 
-  return await response.json();
+  const offersData = await offersResponse.json();
+  console.log('Found offers:', offersData.data?.length || 0);
+
+  return offersData;
 }
 
 async function getHotelOffers(hotelIds: string[], params: any) {
@@ -118,7 +148,6 @@ async function getHotelOffers(hotelIds: string[], params: any) {
 }
 
 async function bookHotel(offerId: string, guestInfo: any, userId: string) {
-  // Simulate booking (Amadeus test env does not support real bookings)
   console.log('Simulating hotel booking...');
   
   try {
